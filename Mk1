@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""
+Daily Embedded Startup Jobs – fetch and email fresh listings.
+"""
+import os, ssl, smtplib, requests, time
+from email.message import EmailMessage
+from datetime import datetime
+
+SERPAPI_KEY = os.getenv("SERPAPI_KEY")
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASS = os.getenv("SMTP_PASS")
+TO_EMAIL   = os.getenv("TO_EMAIL")
+FROM_NAME  = os.getenv("FROM_NAME", "Manoj Kumar")
+SMTP_HOST  = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT  = int(os.getenv("SMTP_PORT", "587"))
+
+QUERY = "fresher entry level embedded engineer startup"
+RESULTS_LIMIT = 8
+API_URL = "https://serpapi.com/search.json"
+
+def search_jobs():
+    params = {
+        "engine": "google_jobs",
+        "q": QUERY,
+        "hl": "en",
+        "api_key": SERPAPI_KEY
+    }
+    res = requests.get(API_URL, params=params, timeout=30)
+    res.raise_for_status()
+    return res.json().get("jobs_results", [])[:RESULTS_LIMIT]
+
+def build_linkedin(job):
+    title = job.get("title", "")
+    company = job.get("company_name", "")
+    return f"""Hi {{first_name}},
+
+I'm Manoj Kumar, a fresher embedded developer experienced with microcontrollers, C, and hardware integration. I noticed the {title} role at {company} and would love to contribute to your team.
+
+Could we schedule a brief call to discuss how I might fit?
+
+Thanks,
+Manoj
+LinkedIn: https://www.linkedin.com/in/YOURPROFILE
+"""
+
+def make_email(jobs):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    msg = EmailMessage()
+    msg["Subject"] = f"Daily Embedded Startup Jobs — {now}"
+    msg["From"] = f"{FROM_NAME} <{SMTP_USER}>"
+    msg["To"] = TO_EMAIL
+
+    lines = [f"Here are today’s fresh embedded startup roles ({now}):\n"]
+    for i, j in enumerate(jobs, 1):
+        lines.append(f"{i}. {j.get('title')} — {j.get('company_name')} ({j.get('location')})")
+        lines.append(f"   Link: {j.get('link')}")
+        snippet = (j.get('snippet') or "").strip().replace("\n", " ")
+        lines.append(f"   {snippet}\n")
+        lines.append("   LinkedIn outreach template:")
+        lines.append(build_linkedin(j))
+        lines.append("-"*60)
+    msg.set_content("\n".join(lines))
+    return msg
+
+def send_email(msg):
+    ctx = ssl.create_default_context()
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+        s.starttls(context=ctx)
+        s.login(SMTP_USER, SMTP_PASS)
+        s.send_message(msg)
+
+def main():
+    jobs = search_jobs()
+    email = make_email(jobs)
+    send_email(email)
+    print(f"Sent {len(jobs)} jobs to {TO_EMAIL}")
+
+if __name__ == "__main__":
+    main()
