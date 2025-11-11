@@ -1,0 +1,7 @@
+SERPAPI_KEY=your_serpapi_key_here
+SMTP_USER=youremail@gmail.com
+SMTP_PASS=your_app_password
+TO_EMAIL=smkmanoj123@gmail.com
+FROM_NAME=Manoj Kumar
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
